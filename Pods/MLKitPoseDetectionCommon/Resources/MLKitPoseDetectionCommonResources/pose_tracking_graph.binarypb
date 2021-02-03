@@ -1,0 +1,8 @@
+
+cGlScalerCalculatorVIDEO:input_framesROTATION:pre_process_rotation"VIDEO:rotated_input_frames
+VGpuBufferToImageFrameCalculatorrotated_input_frames"rotated_input_frames_cpu_rgba
+eColorConvertCalculator%RGBA_IN:rotated_input_frames_cpu_rgba"$RGB_OUT:rotated_input_frames_cpu_rgb
+vPoseTrackingSubgraph"IMAGE:rotated_input_frames_cpu_rgb"NORM_LANDMARKS:pose_landmarks"POSE_PRESENCE:pose_presence
+PImagePropertiesCalculator"IMAGE:rotated_input_frames_cpu_rgb"SIZE:image_size
+Ç$MLKitValidatePoseLandmarksCalculatorNORM_LANDMARKS:pose_landmarksPOSE_PRESENCE:pose_presenceIMAGE_SIZE:image_sizeROTATION:post_process_rotation",VALIDATED_LANDMARKS:validated_pose_landmarks
+x$LandmarksVisibilitySigmoidCalculator(INPUT_LANDMARKS:validated_pose_landmarks"&OUTPUT_LANDMARKS:output_pose_landmarksRinput_framesRpre_process_rotationRpost_process_rotationzoutput_pose_landmarks

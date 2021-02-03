@@ -1,0 +1,6 @@
+framework module Pods_ios_pocketExamRoom {
+  umbrella header "Pods-ios-pocketExamRoom-umbrella.h"
+
+  export *
+  module * { export * }
+}

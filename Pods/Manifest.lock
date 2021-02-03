@@ -1,0 +1,111 @@
+PODS:
+  - GoogleDataTransport (8.2.0):
+    - nanopb (~> 2.30907.0)
+  - GoogleMLKit/MLKitCore (1.0.0):
+    - MLKitCommon (~> 1.0.0)
+  - GoogleMLKit/PoseDetection (1.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitPoseDetection (~> 1.0.0-beta1)
+  - GoogleMLKit/PoseDetectionAccurate (1.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitPoseDetectionAccurate (~> 1.0.0-beta1)
+  - GoogleToolboxForMac/DebugUtils (2.3.0):
+    - GoogleToolboxForMac/Defines (= 2.3.0)
+  - GoogleToolboxForMac/Defines (2.3.0)
+  - GoogleToolboxForMac/Logger (2.3.0):
+    - GoogleToolboxForMac/Defines (= 2.3.0)
+  - "GoogleToolboxForMac/NSData+zlib (2.3.0)":
+    - GoogleToolboxForMac/Defines (= 2.3.0)
+  - "GoogleToolboxForMac/NSDictionary+URLArguments (2.3.0)":
+    - GoogleToolboxForMac/DebugUtils (= 2.3.0)
+    - GoogleToolboxForMac/Defines (= 2.3.0)
+    - "GoogleToolboxForMac/NSString+URLArguments (= 2.3.0)"
+  - "GoogleToolboxForMac/NSString+URLArguments (2.3.0)"
+  - GoogleUtilities/Environment (7.2.0):
+    - PromisesObjC (~> 1.2)
+  - GoogleUtilities/Logger (7.2.0):
+    - GoogleUtilities/Environment
+  - GoogleUtilities/UserDefaults (7.2.0):
+    - GoogleUtilities/Logger
+  - GoogleUtilitiesComponents (1.0.0):
+    - GoogleUtilities/Logger
+  - GTMSessionFetcher/Core (1.5.0)
+  - MLKitCommon (1.0.0):
+    - GoogleDataTransport (~> 8.0)
+    - GoogleToolboxForMac/Logger (~> 2.1)
+    - "GoogleToolboxForMac/NSData+zlib (~> 2.1)"
+    - "GoogleToolboxForMac/NSDictionary+URLArguments (~> 2.1)"
+    - GoogleUtilities/UserDefaults (~> 7.0)
+    - GoogleUtilitiesComponents (~> 1.0)
+    - GTMSessionFetcher/Core (~> 1.1)
+    - Protobuf (~> 3.12)
+  - MLKitPoseDetection (1.0.0-beta1):
+    - MLKitCommon (~> 1.0)
+    - MLKitPoseDetectionCommon (= 1.0.0-beta1)
+    - MLKitXenoCommon (= 1.0.0-beta1)
+  - MLKitPoseDetectionAccurate (1.0.0-beta1):
+    - MLKitCommon (~> 1.0)
+    - MLKitPoseDetectionCommon (= 1.0.0-beta1)
+    - MLKitXenoCommon (= 1.0.0-beta1)
+  - MLKitPoseDetectionCommon (1.0.0-beta1):
+    - MLKitCommon (~> 1.0)
+    - MLKitXenoCommon (= 1.0.0-beta1)
+  - MLKitVision (1.0.0):
+    - GoogleToolboxForMac/Logger (~> 2.1)
+    - "GoogleToolboxForMac/NSData+zlib (~> 2.1)"
+    - GTMSessionFetcher/Core (~> 1.1)
+    - MLKitCommon (~> 1.0)
+    - Protobuf (~> 3.12)
+  - MLKitXenoCommon (1.0.0-beta1):
+    - MLKitCommon (~> 1.0)
+    - MLKitVision (~> 1.0)
+  - nanopb (2.30907.0):
+    - nanopb/decode (= 2.30907.0)
+    - nanopb/encode (= 2.30907.0)
+  - nanopb/decode (2.30907.0)
+  - nanopb/encode (2.30907.0)
+  - PromisesObjC (1.2.12)
+  - Protobuf (3.14.0)
+
+DEPENDENCIES:
+  - GoogleMLKit/PoseDetection
+  - GoogleMLKit/PoseDetectionAccurate
+
+SPEC REPOS:
+  trunk:
+    - GoogleDataTransport
+    - GoogleMLKit
+    - GoogleToolboxForMac
+    - GoogleUtilities
+    - GoogleUtilitiesComponents
+    - GTMSessionFetcher
+    - MLKitCommon
+    - MLKitPoseDetection
+    - MLKitPoseDetectionAccurate
+    - MLKitPoseDetectionCommon
+    - MLKitVision
+    - MLKitXenoCommon
+    - nanopb
+    - PromisesObjC
+    - Protobuf
+
+SPEC CHECKSUMS:
+  GoogleDataTransport: 1024b1a4dfbd7a0e92cb20d7e0a6f1fb66b449a4
+  GoogleMLKit: 7f7c25e2be1388a51ef5ecbee5041a52a997e881
+  GoogleToolboxForMac: 1350d40e86a76f7863928d63bcb0b89c84c521c5
+  GoogleUtilities: d866834472f1324d080496bc67ab3ce5d0d46027
+  GoogleUtilitiesComponents: a69c0b3b369ba443e988141e75ef49d9010b1c80
+  GTMSessionFetcher: b3503b20a988c4e20cc189aa798fd18220133f52
+  MLKitCommon: 5f19646949440e023eda7ca8bef47b71b58de9b8
+  MLKitPoseDetection: e3ea5cfe38d24f434b5bed8ecd12f2df82616d3f
+  MLKitPoseDetectionAccurate: d20a3fee7eb22efcfe7d808651b5ba2d9da9fef7
+  MLKitPoseDetectionCommon: 5896f9a326424ebefba114ec5b731d5e9ab41204
+  MLKitVision: b92bcd1ca283390287c92766ecc3d34585fa30d6
+  MLKitXenoCommon: 96f2492d78b7250ff89599b39cdb4c49e5fa9087
+  nanopb: 59221d7f958fb711001e6a449489542d92ae113e
+  PromisesObjC: 3113f7f76903778cf4a0586bd1ab89329a0b7b97
+  Protobuf: 0cde852566359049847168e51bd1c690e0f70056
+
+PODFILE CHECKSUM: 3529f4df3befe74b6ff9501ff4d5487a063c3fb5
+
+COCOAPODS: 1.10.1
