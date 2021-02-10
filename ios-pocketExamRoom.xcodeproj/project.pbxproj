@@ -8,19 +8,19 @@
 
 /* Begin PBXBuildFile section */
 		0306457F25C837EB006175E0 /* ios_pocketExamRoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0306457E25C837EB006175E0 /* ios_pocketExamRoomApp.swift */; };
-		0306458125C837EB006175E0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0306458025C837EB006175E0 /* ContentView.swift */; };
 		0306458325C837EC006175E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0306458225C837EC006175E0 /* Assets.xcassets */; };
 		0306458625C837EC006175E0 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0306458525C837EC006175E0 /* Preview Assets.xcassets */; };
 		0306459225C83B08006175E0 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0306459125C83B08006175E0 /* CameraViewController.swift */; };
 		030645AE25C849CC006175E0 /* RESTHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030645AD25C849CC006175E0 /* RESTHelper.swift */; };
 		030645B325C882CF006175E0 /* BodyPositionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030645B225C882CF006175E0 /* BodyPositionData.swift */; };
 		5048866AA626CB3A011822D8 /* Pods_ios_pocketExamRoom.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C7A002F9ED2CBE41C10D20E5 /* Pods_ios_pocketExamRoom.framework */; };
+		8FDB4E4A25D0749D0003ADF2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDB4E4925D0749D0003ADF2 /* ContentView.swift */; };
+		8FDB4E4D25D099AE0003ADF2 /* UIUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FDB4E4C25D099AE0003ADF2 /* UIUtilities.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0306457B25C837EB006175E0 /* ios-pocketExamRoom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ios-pocketExamRoom.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0306457E25C837EB006175E0 /* ios_pocketExamRoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ios_pocketExamRoomApp.swift; sourceTree = "<group>"; };
-		0306458025C837EB006175E0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		0306458225C837EC006175E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0306458525C837EC006175E0 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		0306458725C837EC006175E0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -29,6 +29,8 @@
 		030645B225C882CF006175E0 /* BodyPositionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyPositionData.swift; sourceTree = "<group>"; };
 		079650FA8C53C374B8CF3957 /* Pods-ios-pocketExamRoom.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ios-pocketExamRoom.debug.xcconfig"; path = "Target Support Files/Pods-ios-pocketExamRoom/Pods-ios-pocketExamRoom.debug.xcconfig"; sourceTree = "<group>"; };
 		6F94612865B9632E39D65E5C /* Pods-ios-pocketExamRoom.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ios-pocketExamRoom.release.xcconfig"; path = "Target Support Files/Pods-ios-pocketExamRoom/Pods-ios-pocketExamRoom.release.xcconfig"; sourceTree = "<group>"; };
+		8FDB4E4925D0749D0003ADF2 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		8FDB4E4C25D099AE0003ADF2 /* UIUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIUtilities.swift; sourceTree = "<group>"; };
 		C7A002F9ED2CBE41C10D20E5 /* Pods_ios_pocketExamRoom.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ios_pocketExamRoom.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -68,11 +70,12 @@
 				030645B125C882B6006175E0 /* Models */,
 				030645AC25C849B8006175E0 /* Helpers */,
 				0306457E25C837EB006175E0 /* ios_pocketExamRoomApp.swift */,
-				0306458025C837EB006175E0 /* ContentView.swift */,
 				0306458225C837EC006175E0 /* Assets.xcassets */,
 				0306458725C837EC006175E0 /* Info.plist */,
 				0306459125C83B08006175E0 /* CameraViewController.swift */,
 				0306458425C837EC006175E0 /* Preview Content */,
+				8FDB4E4925D0749D0003ADF2 /* ContentView.swift */,
+				8FDB4E4C25D099AE0003ADF2 /* UIUtilities.swift */,
 			);
 			path = "ios-pocketExamRoom";
 			sourceTree = "<group>";
@@ -250,9 +253,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				0306459225C83B08006175E0 /* CameraViewController.swift in Sources */,
+				8FDB4E4A25D0749D0003ADF2 /* ContentView.swift in Sources */,
 				030645AE25C849CC006175E0 /* RESTHelper.swift in Sources */,
-				0306458125C837EB006175E0 /* ContentView.swift in Sources */,
 				030645B325C882CF006175E0 /* BodyPositionData.swift in Sources */,
+				8FDB4E4D25D099AE0003ADF2 /* UIUtilities.swift in Sources */,
 				0306457F25C837EB006175E0 /* ios_pocketExamRoomApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -384,7 +388,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"ios-pocketExamRoom/Preview Content\"";
-				DEVELOPMENT_TEAM = 6FCFR398XG;
+				DEVELOPMENT_TEAM = NNH4K82KG8;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = "ios-pocketExamRoom/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
@@ -392,7 +396,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.techinc.ios-pocketExamRoom";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.techinc2.ios-pocketExamRoom";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -407,7 +411,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"ios-pocketExamRoom/Preview Content\"";
-				DEVELOPMENT_TEAM = 6FCFR398XG;
+				DEVELOPMENT_TEAM = NNH4K82KG8;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = "ios-pocketExamRoom/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
@@ -415,7 +419,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.techinc.ios-pocketExamRoom";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.techinc2.ios-pocketExamRoom";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

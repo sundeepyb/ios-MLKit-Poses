@@ -11,20 +11,25 @@ import SwiftUI
 import AVFoundation
 import MLKit
 
-final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
+@objc(CameraViewController)
+final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate,
+    ObservableObject {
     // MARK: init preview view
-    var previewView: UIView!
+    @IBOutlet private var previewView: UIView!
     
     //MARK: init REST Helper
     var postRequest = APIPostRequest(resource: "https://v3yr6f5rmf.execute-api.us-east-1.amazonaws.com/prod/echo")
     
-    var captureSession: AVCaptureSession?
+    lazy var captureSession = AVCaptureSession()
     var frontCamera: AVCaptureDevice?
     var frontCameraInput: AVCaptureDeviceInput?
-    var previewLayer: AVCaptureVideoPreviewLayer?
+    var previewLayer: AVCaptureVideoPreviewLayer!
     var videoOutput: AVCaptureVideoDataOutput!
     var jointsToTrack: [PoseLandmarkType] = [.leftShoulder,.rightShoulder,.leftHip,.rightHip,.leftKnee,.rightKnee]
     var bodyPositions: [BodyPositionData] = []
+    var lastFrame: CMSampleBuffer?
+    var isUsingFrontCamera = false
+    lazy var sessionQueue = DispatchQueue(label: Constant.sessionQueueLabel)
     
     // MARK: init Pose Detector
     var poseDetector: PoseDetector?
@@ -38,102 +43,188 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
         case unknown
     }
     
+    lazy var annotationOverlayView: UIView = {
+      let annotationOverlayView = UIView(frame: .zero)
+        annotationOverlayView.contentMode = UIView.ContentMode.scaleAspectFill
+        annotationOverlayView.translatesAutoresizingMaskIntoConstraints = false
+        annotationOverlayView.clipsToBounds = true
+      return annotationOverlayView
+    }()
+    
+    lazy var previewOverlayView: UIImageView = {
+      let previewOverlayView = UIImageView(frame: .zero)
+        previewOverlayView.contentMode = UIView.ContentMode.scaleAspectFill
+      previewOverlayView.translatesAutoresizingMaskIntoConstraints = false
+        return previewOverlayView
+    }()
+    
     override func viewDidLoad() {
         // MARK: build and add preview view
-        previewView = UIView(frame: CGRect(x:0, y:0, width: UIScreen.main.bounds.size.width, height: UIScreen.main.bounds.size.height))
-        previewView.contentMode = UIView.ContentMode.scaleAspectFit
-        view.addSubview(previewView)
-        prepare {(error) in
-            if let error = error {
-                print(error)
-            }
-            try? self.displayPreview(on: self.previewView)
-        }
-    }
-    
-    func prepare(completionHandler: @escaping (Error?) -> Void) {
+        super.viewDidLoad()
+        
+        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        setUpPreviewOverlayView()
+        setUpAnnotationOverlayView()
+        setUpCaptureSessionOutput()
+        setUpCaptureSessionInput()
+//        previewView = UIView(frame: CGRect(x:0, y:0, width: UIScreen.main.bounds.size.width, height: UIScreen.main.bounds.size.height))
+//        previewView.contentMode = UIView.ContentMode.scaleAspectFill
+//        view.addSubview(previewView)
+        
         // MARK: configure PoseDetector from MLKit
         let options = AccuratePoseDetectorOptions()
         options.detectorMode = .stream
         poseDetector = PoseDetector.poseDetector(options: options)
         
-        // MARK: initialize capture session
-        func createCaptureSession(){
-            self.captureSession = AVCaptureSession()
-        }
-        
-        // MARK: configure capture device
-        func configureCaptureDevices() throws {
-            let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: AVMediaType.video, position: .front)
-            self.frontCamera = camera
-            try camera?.lockForConfiguration()
-            camera?.unlockForConfiguration()
-        }
-        
-        // MARK: configure device inputs
-        func configureDeviceInputs() throws {
-            guard let captureSession = self.captureSession else { throw CameraControllerError.captureSessionIsMissing }
-            if let frontCamera = self.frontCamera {
-                self.frontCameraInput = try AVCaptureDeviceInput(device: frontCamera)
-                if captureSession.canAddInput(self.frontCameraInput!) { captureSession.addInput(self.frontCameraInput!)}
-                else { throw CameraControllerError.inputsAreInvalid }
-                
-                videoOutput = AVCaptureVideoDataOutput()
-                videoOutput.videoSettings = [(kCVPixelBufferPixelFormatTypeKey as String) : NSNumber(value: kCVPixelFormatType_32BGRA as UInt32)]
-                videoOutput.alwaysDiscardsLateVideoFrames = true
+//        prepare {(error) in
+//            if let error = error {
+//                print(error)
+//            }
+//            try? self.displayPreview(on: self.previewOverlayView)
+//        }
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+      super.viewDidAppear(animated)
 
-                if (captureSession.canAddOutput(videoOutput) == true) {
-                captureSession.addOutput(videoOutput)
-                }
-                
-                let queue = DispatchQueue(label: "fr.popigny.videoQueue", attributes: [])
-                videoOutput.setSampleBufferDelegate(self, queue: queue)
-            }
-            else { throw CameraControllerError.noCamerasAvailable }
-            captureSession.commitConfiguration()
+      startSession()
+    }
 
-            captureSession.startRunning()
-            
-            // Stop after 30 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) {
-                self.captureSession?.stopRunning()
-                print("Saving to data store")
-                self.postRequest.savePositions(positions: self.bodyPositions)
-            }
-        }
-        
-        // MARK: call func on bg thread
-        DispatchQueue(label: "prepare").async {
-            do {
-                createCaptureSession()
-                try configureCaptureDevices()
-                try configureDeviceInputs()
-            }
-            catch {
-                DispatchQueue.main.async{
-                    completionHandler(error)
-                }
-                return
-            }
-            DispatchQueue.main.async {
-                completionHandler(nil)
-            }
+    override func viewDidDisappear(_ animated: Bool) {
+      super.viewDidDisappear(animated)
+
+      stopSession()
+    }
+
+    override func viewDidLayoutSubviews() {
+      super.viewDidLayoutSubviews()
+        if previewLayer != nil {
+            previewLayer.frame = view.frame
         }
     }
     
-    //MARK: Add video preview to view
-    func displayPreview(on view: UIView) throws {
-        guard let captureSession = self.captureSession, captureSession.isRunning else { throw CameraControllerError.captureSessionIsMissing }
-            
-        self.previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
-            self.previewLayer?.videoGravity = AVLayerVideoGravity.resizeAspectFill
-        self.previewLayer?.connection?.videoOrientation = .portrait
-        
-        view.layer.insertSublayer(self.previewLayer!, at: 0)
-        self.previewLayer?.frame = view.frame
+    private func startSession() {
+      sessionQueue.async {
+        self.captureSession.startRunning()
+      }
+    }
+
+    private func stopSession() {
+      sessionQueue.async {
+        self.captureSession.stopRunning()
+      }
     }
     
-//    // MARK: Capture Output
+    private func setUpPreviewOverlayView() {
+        if view != nil {
+        view.addSubview(previewOverlayView)
+          NSLayoutConstraint.activate([
+            previewOverlayView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            previewOverlayView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            previewOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            previewOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+          ])
+        }
+    }
+
+    private func setUpAnnotationOverlayView() {
+        if view != nil {
+            view.addSubview(annotationOverlayView)
+          NSLayoutConstraint.activate([
+            annotationOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
+            annotationOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            annotationOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            annotationOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+          ])
+        }
+    }
+    
+    private func normalizedPoint(
+      fromVisionPoint point: VisionPoint,
+      width: CGFloat,
+      height: CGFloat
+    ) -> CGPoint {
+      let cgPoint = CGPoint(x: point.x, y: point.y)
+      let normalizedPoint = CGPoint(x: cgPoint.x / width, y: cgPoint.y / height)
+        
+    return previewLayer?.layerPointConverted(fromCaptureDevicePoint: normalizedPoint) ?? normalizedPoint
+    }
+    
+    private func captureDevice(forPosition position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+      if #available(iOS 10.0, *) {
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: AVMediaType.video, position: position)
+      }
+      return nil
+    }
+    
+    private func setUpCaptureSessionInput() {
+      sessionQueue.async {
+        let cameraPosition: AVCaptureDevice.Position = self.isUsingFrontCamera ? .front : .back
+        guard let device = self.captureDevice(forPosition: cameraPosition) else {
+          print("Failed to get capture device for camera position: \(cameraPosition)")
+          return
+        }
+        do {
+            self.captureSession.beginConfiguration()
+            let currentInputs = self.captureSession.inputs
+          for input in currentInputs {
+            self.captureSession.removeInput(input)
+          }
+
+          let input = try AVCaptureDeviceInput(device: device)
+            guard self.captureSession.canAddInput(input) else {
+            print("Failed to add capture session input.")
+            return
+          }
+            self.captureSession.addInput(input)
+            self.captureSession.commitConfiguration()
+        } catch {
+          print("Failed to create capture device input: \(error.localizedDescription)")
+        }
+      }
+    }
+    
+    private func setUpCaptureSessionOutput() {
+      sessionQueue.async {
+        self.captureSession.beginConfiguration()
+        // When performing latency tests to determine ideal capture settings,
+        // run the app in 'release' mode to get accurate performance metrics
+        self.captureSession.sessionPreset = AVCaptureSession.Preset.medium
+
+        let output = AVCaptureVideoDataOutput()
+        output.videoSettings = [
+          (kCVPixelBufferPixelFormatTypeKey as String): kCVPixelFormatType_32BGRA
+        ]
+        output.alwaysDiscardsLateVideoFrames = true
+        let outputQueue = DispatchQueue(label: Constant.videoDataOutputQueueLabel)
+        output.setSampleBufferDelegate(self, queue: outputQueue)
+        guard self.captureSession.canAddOutput(output) else {
+          print("Failed to add capture session output.")
+          return
+        }
+        self.captureSession.addOutput(output)
+        self.captureSession.commitConfiguration()
+      }
+    }
+    
+    @IBAction func switchCamera(_ sender: Any) {
+      isUsingFrontCamera = !isUsingFrontCamera
+      removeDetectionAnnotations()
+      setUpCaptureSessionInput()
+    }
+    
+    @IBAction func startAction() {
+      
+    }
+    
+    func removeDetectionAnnotations() {
+        for annotationView in self.annotationOverlayView.subviews {
+        annotationView.removeFromSuperview()
+      }
+    }
+        
+    // MARK: Capture Output
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
           print("Failed to get image buffer from sample buffer.")
@@ -142,51 +233,97 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
         let width = CGFloat(CVPixelBufferGetWidth(imageBuffer))
         let height = CGFloat(CVPixelBufferGetHeight(imageBuffer))
         let image = VisionImage(buffer: sampleBuffer)
+        lastFrame = sampleBuffer
         image.orientation = imageOrientation(
           deviceOrientation: UIDevice.current.orientation,
             cameraPosition: .back)
-        var results: [Pose]?
-        do {
-        results = try self.poseDetector!.results(in: image)
-        } catch let error {
-          print("Failed to detect pose with error: \(error.localizedDescription).")
+        if let poseDetector = self.poseDetector {
+            var poses: [Pose]
+            do {
+                poses = try poseDetector.results(in: image)
+            } catch let error {
+              print("Failed to detect pose with error: \(error.localizedDescription).")
+              return
+            }
+            guard !poses.isEmpty else {
+              print("Pose detector returned no results.")
+              return
+            }
+            DispatchQueue.main.sync {
+              self.updatePreviewOverlayView()
+              self.removeDetectionAnnotations()
+            }
+            DispatchQueue.main.sync {
+                poses.forEach { pose in
+                  let poseOverlayView = UIUtilities.createPoseOverlayView(
+                    forPose: pose,
+                    inViewWithBounds: self.annotationOverlayView.bounds,
+                    lineWidth: Constant.lineWidth,
+                    dotRadius: Constant.smallDotRadius,
+                    positionTransformationClosure: { (position) -> CGPoint in
+                      return self.normalizedPoint(fromVisionPoint: position, width: width,
+                                                        height: height)
+                    }
+                  )
+                  self.annotationOverlayView.addSubview(poseOverlayView)
+                }
+            }
+            for pose in poses {
+                //TODO: Holy hardcoded
+                let leftShoulderLandmark = pose.landmark(ofType: .leftShoulder)
+                let leftShoulderAngle = angle(firstLandmark: pose.landmark(ofType: .leftElbow), midLandmark: pose.landmark(ofType: .leftShoulder), lastLandmark: pose.landmark(ofType: .leftHip))
+                let leftShoulder = JointLocationData(jointLocation: [Double(leftShoulderLandmark.position.x),Double(leftShoulderLandmark.position.y)], jointAngle: Double(leftShoulderAngle))
+                
+                let rightShoulderLandmark = pose.landmark(ofType: .rightShoulder)
+                let rightShoulderAngle = angle(firstLandmark: pose.landmark(ofType: .rightElbow), midLandmark: pose.landmark(ofType: .rightShoulder), lastLandmark: pose.landmark(ofType: .rightHip))
+                let rightShoulder = JointLocationData(jointLocation: [Double(rightShoulderLandmark.position.x),Double(rightShoulderLandmark.position.y)], jointAngle: Double(rightShoulderAngle))
+                
+                let leftHipLandmark = pose.landmark(ofType: .leftHip)
+                let leftHipAngle = angle(firstLandmark: pose.landmark(ofType: .leftShoulder), midLandmark: pose.landmark(ofType: .leftHip), lastLandmark: pose.landmark(ofType: .leftKnee))
+                let leftHip = JointLocationData(jointLocation: [Double(leftHipLandmark.position.x),Double(leftHipLandmark.position.y)], jointAngle: Double(leftHipAngle))
+                
+                let rightHipLandmark = pose.landmark(ofType: .rightHip)
+                let rightHipAngle = angle(firstLandmark: pose.landmark(ofType: .rightShoulder), midLandmark: pose.landmark(ofType: .rightHip), lastLandmark: pose.landmark(ofType: .rightKnee))
+                let rightHip = JointLocationData(jointLocation: [Double(rightHipLandmark.position.x),Double(rightHipLandmark.position.y)], jointAngle: Double(rightHipAngle))
+                
+                let leftKneeLandmark = pose.landmark(ofType: .leftKnee)
+                let leftKneeAngle = angle(firstLandmark: pose.landmark(ofType: .leftHip), midLandmark: pose.landmark(ofType: .leftKnee), lastLandmark: pose.landmark(ofType: .leftAnkle))
+                let leftKnee = JointLocationData(jointLocation: [Double(leftKneeLandmark.position.x),Double(leftKneeLandmark.position.y)], jointAngle: Double(leftKneeAngle))
+                
+                let rightKneeLandmark = pose.landmark(ofType: .rightKnee)
+                let rightKneeAngle = angle(firstLandmark: pose.landmark(ofType: .rightHip), midLandmark: pose.landmark(ofType: .rightKnee), lastLandmark: pose.landmark(ofType: .rightAnkle))
+                let rightKnee = JointLocationData(jointLocation: [Double(rightKneeLandmark.position.x),Double(rightKneeLandmark.position.y)], jointAngle: Double(rightKneeAngle))
+                
+                let bodyPosition = BodyPositionData(timeStamp: Date(), leftShoulder: leftShoulder, rightShoulder: rightShoulder, leftHip: leftHip, rightHip: rightHip, leftKnee: leftKnee, rightKnee: rightKnee)
+                
+                bodyPositions.append(bodyPosition)
+                print("Positions added: \(bodyPositions.count)")
+            }
+        }
+    }
+    
+    private func updatePreviewOverlayView() {
+      guard let lastFrame = lastFrame,
+        let imageBuffer = CMSampleBufferGetImageBuffer(lastFrame)
+      else {
+        return
+      }
+      let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+      let context = CIContext(options: nil)
+      guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+        return
+      }
+      let rotatedImage = UIImage(cgImage: cgImage, scale: Constant.originalScale, orientation: .right)
+      if isUsingFrontCamera {
+        guard let rotatedCGImage = rotatedImage.cgImage else {
           return
         }
-        guard let detectedPoses = results, !detectedPoses.isEmpty else {
-//
-          return
-        }
-        for pose in detectedPoses {
-            //TODO: Holy hardcoded
-            let leftShoulderLandmark = pose.landmark(ofType: .leftShoulder)
-            let leftShoulderAngle = angle(firstLandmark: pose.landmark(ofType: .leftElbow), midLandmark: pose.landmark(ofType: .leftShoulder), lastLandmark: pose.landmark(ofType: .leftHip))
-            let leftShoulder = JointLocationData(jointLocation: [Double(leftShoulderLandmark.position.x),Double(leftShoulderLandmark.position.y)], jointAngle: Double(leftShoulderAngle))
-            
-            let rightShoulderLandmark = pose.landmark(ofType: .rightShoulder)
-            let rightShoulderAngle = angle(firstLandmark: pose.landmark(ofType: .rightElbow), midLandmark: pose.landmark(ofType: .rightShoulder), lastLandmark: pose.landmark(ofType: .rightHip))
-            let rightShoulder = JointLocationData(jointLocation: [Double(rightShoulderLandmark.position.x),Double(rightShoulderLandmark.position.y)], jointAngle: Double(rightShoulderAngle))
-            
-            let leftHipLandmark = pose.landmark(ofType: .leftHip)
-            let leftHipAngle = angle(firstLandmark: pose.landmark(ofType: .leftShoulder), midLandmark: pose.landmark(ofType: .leftHip), lastLandmark: pose.landmark(ofType: .leftKnee))
-            let leftHip = JointLocationData(jointLocation: [Double(leftHipLandmark.position.x),Double(leftHipLandmark.position.y)], jointAngle: Double(leftHipAngle))
-            
-            let rightHipLandmark = pose.landmark(ofType: .rightHip)
-            let rightHipAngle = angle(firstLandmark: pose.landmark(ofType: .rightShoulder), midLandmark: pose.landmark(ofType: .rightHip), lastLandmark: pose.landmark(ofType: .rightKnee))
-            let rightHip = JointLocationData(jointLocation: [Double(rightHipLandmark.position.x),Double(rightHipLandmark.position.y)], jointAngle: Double(rightHipAngle))
-            
-            let leftKneeLandmark = pose.landmark(ofType: .leftKnee)
-            let leftKneeAngle = angle(firstLandmark: pose.landmark(ofType: .leftHip), midLandmark: pose.landmark(ofType: .leftKnee), lastLandmark: pose.landmark(ofType: .leftAnkle))
-            let leftKnee = JointLocationData(jointLocation: [Double(leftKneeLandmark.position.x),Double(leftKneeLandmark.position.y)], jointAngle: Double(leftKneeAngle))
-            
-            let rightKneeLandmark = pose.landmark(ofType: .rightKnee)
-            let rightKneeAngle = angle(firstLandmark: pose.landmark(ofType: .rightHip), midLandmark: pose.landmark(ofType: .rightKnee), lastLandmark: pose.landmark(ofType: .rightAnkle))
-            let rightKnee = JointLocationData(jointLocation: [Double(rightKneeLandmark.position.x),Double(rightKneeLandmark.position.y)], jointAngle: Double(rightKneeAngle))
-            
-            let bodyPosition = BodyPositionData(timeStamp: Date(), leftShoulder: leftShoulder, rightShoulder: rightShoulder, leftHip: leftHip, rightHip: rightHip, leftKnee: leftKnee, rightKnee: rightKnee)
-            
-            bodyPositions.append(bodyPosition)
-            print("Positions added: \(bodyPositions.count)")
-        }
+        let mirroredImage = UIImage(
+          cgImage: rotatedCGImage, scale: Constant.originalScale, orientation: .leftMirrored)
+        previewOverlayView.image = mirroredImage
+      } else {
+        previewOverlayView.image = rotatedImage
+      }
     }
 
     // MARK: get image orientation
@@ -244,4 +381,15 @@ extension CameraViewController : UIViewControllerRepresentable{
     
     public func updateUIViewController(_ uiViewController: CameraViewController, context: UIViewControllerRepresentableContext<CameraViewController>) {
     }
+}
+
+private enum Constant {
+  static let videoDataOutputQueueLabel = "com.google.mlkit.visiondetector.VideoDataOutputQueue"
+  static let sessionQueueLabel = "com.google.mlkit.visiondetector.SessionQueue"
+  static let noResultsMessage = "No Results"
+  static let labelConfidenceThreshold = 0.75
+  static let smallDotRadius: CGFloat = 12.0
+  static let lineWidth: CGFloat = 3.0
+  static let originalScale: CGFloat = 1.0
+  static let padding: CGFloat = 10.0
 }

@@ -1,4 +1,5 @@
 ${PODS_ROOT}/Target Support Files/Pods-ios-pocketExamRoom/Pods-ios-pocketExamRoom-frameworks.sh
+${BUILT_PRODUCTS_DIR}/CameraManager/CameraManager.framework
 ${BUILT_PRODUCTS_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework
 ${BUILT_PRODUCTS_DIR}/GoogleDataTransport/GoogleDataTransport.framework
 ${BUILT_PRODUCTS_DIR}/GoogleToolboxForMac/GoogleToolboxForMac.framework
