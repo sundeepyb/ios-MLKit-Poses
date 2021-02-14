@@ -12,8 +12,8 @@ import AVFoundation
 import MLKit
 
 @objc(CameraViewController)
-final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate,
-    ObservableObject {
+final class CameraViewController: UIViewController {
+
     // MARK: init preview view
     @IBOutlet private var previewView: UIView!
     
@@ -28,8 +28,17 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
     var jointsToTrack: [PoseLandmarkType] = [.leftShoulder,.rightShoulder,.leftHip,.rightHip,.leftKnee,.rightKnee]
     var bodyPositions: [BodyPositionData] = []
     var lastFrame: CMSampleBuffer?
-    var isUsingFrontCamera = false
+    var isUsingFrontCamera = true
     lazy var sessionQueue = DispatchQueue(label: Constant.sessionQueueLabel)
+    
+    var _assetWriter: AVAssetWriter?
+    var _assetWriterInput: AVAssetWriterInput?
+    var _adpater: AVAssetWriterInputPixelBufferAdaptor?
+    var _filename = ""
+    var _time: Double = 0
+    var _captureState = "idle"
+    var timestamp = CFAbsoluteTimeGetCurrent()
+
     
     // MARK: init Pose Detector
     var poseDetector: PoseDetector?
@@ -86,8 +95,26 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
     
     override func viewDidAppear(_ animated: Bool) {
       super.viewDidAppear(animated)
-
-      startSession()
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+            case .notDetermined:
+                AVCaptureDevice.requestAccess(for: .video) { granted in
+                    if granted {
+                        self.startSession()
+                    }
+                }
+            case .restricted:
+                break
+            case .denied:
+                break
+            case .authorized:
+                startSession()
+        }
+        
+        // Stop after 30 seconds
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+//            print("5 seconds timer finished")
+//            self.stopSession()
+//        }
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -95,7 +122,7 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
 
       stopSession()
     }
-
+    
     override func viewDidLayoutSubviews() {
       super.viewDidLayoutSubviews()
         if previewLayer != nil {
@@ -105,14 +132,35 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
     
     private func startSession() {
       sessionQueue.async {
+        print("captureSession startRunning")
         self.captureSession.startRunning()
       }
     }
 
     private func stopSession() {
       sessionQueue.async {
+        
+//        print("stopSession for record file")
+//        guard self._assetWriterInput?.isReadyForMoreMediaData == true, self._assetWriter!.status != .failed else { return }
+//        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(self._filename).mov")
+//        self._assetWriterInput?.markAsFinished()
+//        self._assetWriter?.finishWriting { [weak self] in
+//            self?._captureState = "idle"
+//            self?._assetWriter = nil
+//            self?._assetWriterInput = nil
+//            DispatchQueue.main.async {
+//                let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+//                self?.present(activity, animated: true, completion: nil)
+//            }
+//        }
+//
+//
         self.captureSession.stopRunning()
       }
+    }
+    
+    public func stopRecording() {
+//        self.movieOutput.stopRecording()
     }
     
     private func setUpPreviewOverlayView() {
@@ -199,6 +247,35 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
         output.alwaysDiscardsLateVideoFrames = true
         let outputQueue = DispatchQueue(label: Constant.videoDataOutputQueueLabel)
         output.setSampleBufferDelegate(self, queue: outputQueue)
+        
+        
+        print("captureOutput start")
+        self._filename = UUID().uuidString
+        let videoPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("\(self._filename).mov")
+        let writer = try! AVAssetWriter(outputURL: videoPath, fileType: .mov)
+        // let settings = output.recommendedVideoSettingsForAssetWriter(writingTo: .mov)
+        let input = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: [
+                                       AVVideoCodecKey : AVVideoCodecType.h264,
+                                       AVVideoWidthKey : 720,
+                                       AVVideoHeightKey : 1280,
+                                       AVVideoCompressionPropertiesKey : [
+                                           AVVideoAverageBitRateKey : 2300000,
+                                           ],
+                                       ]) // [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 1920, AVVideoHeightKey: 1080])
+        input.expectsMediaDataInRealTime = true
+        let adapter = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
+        if writer.canAdd(input) {
+            writer.add(input)
+        }
+        writer.startWriting()
+        writer.startSession(atSourceTime: .zero)
+        self._assetWriter = writer
+        self._assetWriterInput = input
+        self._adpater = adapter
+        self._captureState = "capturing"
+        self._time = self.timestamp
+
+        
         guard self.captureSession.canAddOutput(output) else {
           print("Failed to add capture session output.")
           return
@@ -223,9 +300,102 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
         annotationView.removeFromSuperview()
       }
     }
+    public func updateCaptureState() {
+        sessionQueue.async {
+            if (self._captureState == "idle") {
+                self._captureState = "start"
+            } else if (self._captureState == "capturing") {
+                self._captureState = "end"
+            } else {
+                print("last else")
+                print(self._captureState)
+            }
+        }
+    }
+    
+    @IBAction public func capture(_ sender: Any) {
+        print("capture function triggered")
+        updateCaptureState()
+    }
         
+    private func updatePreviewOverlayView() {
+      guard let lastFrame = lastFrame,
+        let imageBuffer = CMSampleBufferGetImageBuffer(lastFrame)
+      else {
+        return
+      }
+      let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+      let context = CIContext(options: nil)
+      guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+        return
+      }
+      let rotatedImage = UIImage(cgImage: cgImage, scale: Constant.originalScale, orientation: .right)
+      if isUsingFrontCamera {
+        guard let rotatedCGImage = rotatedImage.cgImage else {
+          return
+        }
+        let mirroredImage = UIImage(
+          cgImage: rotatedCGImage, scale: Constant.originalScale, orientation: .leftMirrored)
+        previewOverlayView.image = mirroredImage
+      } else {
+        previewOverlayView.image = rotatedImage
+      }
+    }
+
+    // MARK: get image orientation
+    func imageOrientation(
+      deviceOrientation: UIDeviceOrientation,
+      cameraPosition: AVCaptureDevice.Position
+    ) -> UIImage.Orientation {
+      switch deviceOrientation {
+      case .portrait:
+        return cameraPosition == .front ? .leftMirrored : .right
+      case .landscapeLeft:
+        return cameraPosition == .front ? .downMirrored : .up
+      case .portraitUpsideDown:
+        return cameraPosition == .front ? .rightMirrored : .left
+      case .landscapeRight:
+        return cameraPosition == .front ? .upMirrored : .down
+      case .faceDown, .faceUp, .unknown:
+        return .upMirrored
+      @unknown default:
+        return .upMirrored
+      }
+    }
+    
+    // MARK: Caluclate angle
+    func angle(
+          firstLandmark: PoseLandmark,
+          midLandmark: PoseLandmark,
+          lastLandmark: PoseLandmark
+      ) -> CGFloat {
+          let radians: CGFloat =
+              atan2(lastLandmark.position.y - midLandmark.position.y,
+                        lastLandmark.position.x - midLandmark.position.x) -
+                atan2(firstLandmark.position.y - midLandmark.position.y,
+                        firstLandmark.position.x - midLandmark.position.x)
+          var degrees = radians * 180.0 / .pi
+          degrees = abs(degrees) // Angle should never be negative
+          if degrees > 180.0 {
+              degrees = 360.0 - degrees // Always get the acute representation of the angle
+          }
+          return degrees
+      }
+}
+
+extension CameraViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
     // MARK: Capture Output
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+
+//        timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+//        if (_captureState == "capturing") {
+//            print("captureOutput capturing")
+//            if _assetWriterInput?.isReadyForMoreMediaData == true {
+//                let time = CMTime(seconds: timestamp - _time, preferredTimescale: CMTimeScale(600))
+//                _adpater?.append(CMSampleBufferGetImageBuffer(sampleBuffer)!, withPresentationTime: time)
+//            }
+//        }
+        
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
           print("Failed to get image buffer from sample buffer.")
           return
@@ -297,79 +467,12 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
                 let bodyPosition = BodyPositionData(timeStamp: Date(), leftShoulder: leftShoulder, rightShoulder: rightShoulder, leftHip: leftHip, rightHip: rightHip, leftKnee: leftKnee, rightKnee: rightKnee)
                 
                 bodyPositions.append(bodyPosition)
-                print("Positions added: \(bodyPositions.count)")
+                print("Left x:\(leftShoulderLandmark.position.x) y:\(leftShoulderLandmark.position.y) Right x:\(rightShoulderLandmark.position.x) y:\(rightShoulderLandmark.position.y)")
             }
         }
     }
-    
-    private func updatePreviewOverlayView() {
-      guard let lastFrame = lastFrame,
-        let imageBuffer = CMSampleBufferGetImageBuffer(lastFrame)
-      else {
-        return
-      }
-      let ciImage = CIImage(cvPixelBuffer: imageBuffer)
-      let context = CIContext(options: nil)
-      guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
-        return
-      }
-      let rotatedImage = UIImage(cgImage: cgImage, scale: Constant.originalScale, orientation: .right)
-      if isUsingFrontCamera {
-        guard let rotatedCGImage = rotatedImage.cgImage else {
-          return
-        }
-        let mirroredImage = UIImage(
-          cgImage: rotatedCGImage, scale: Constant.originalScale, orientation: .leftMirrored)
-        previewOverlayView.image = mirroredImage
-      } else {
-        previewOverlayView.image = rotatedImage
-      }
-    }
 
-    // MARK: get image orientation
-    func imageOrientation(
-      deviceOrientation: UIDeviceOrientation,
-      cameraPosition: AVCaptureDevice.Position
-    ) -> UIImage.Orientation {
-      switch deviceOrientation {
-      case .portrait:
-        return cameraPosition == .front ? .leftMirrored : .right
-      case .landscapeLeft:
-        return cameraPosition == .front ? .downMirrored : .up
-      case .portraitUpsideDown:
-        return cameraPosition == .front ? .rightMirrored : .left
-      case .landscapeRight:
-        return cameraPosition == .front ? .upMirrored : .down
-      case .faceDown, .faceUp, .unknown:
-        return .upMirrored
-      @unknown default:
-        return .upMirrored
-      }
-    }
-    
-    // MARK: Caluclate angle
-    func angle(
-          firstLandmark: PoseLandmark,
-          midLandmark: PoseLandmark,
-          lastLandmark: PoseLandmark
-      ) -> CGFloat {
-          let radians: CGFloat =
-              atan2(lastLandmark.position.y - midLandmark.position.y,
-                        lastLandmark.position.x - midLandmark.position.x) -
-                atan2(firstLandmark.position.y - midLandmark.position.y,
-                        firstLandmark.position.x - midLandmark.position.x)
-          var degrees = radians * 180.0 / .pi
-          degrees = abs(degrees) // Angle should never be negative
-          if degrees > 180.0 {
-              degrees = 360.0 - degrees // Always get the acute representation of the angle
-          }
-          return degrees
-      }
 }
-
-//extension CameraController: AVCaptureVideoDataOutputSampleBufferDelegate {
-//
-//}
 
 // MARK: Make view controller compat with SwiftUI
 extension CameraViewController : UIViewControllerRepresentable{

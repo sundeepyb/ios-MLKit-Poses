@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct ContentView: View {
-    let cameraView = CameraViewController()
     @ObservedObject var examTimer = ExamTimer()
+    let cameraView = CameraViewController()
+    @State private var showAlert = false;
     
     var body: some View {
         ZStack {
@@ -19,7 +20,7 @@ struct ContentView: View {
                 HStack {
                     Spacer()
                     Button(action: {
-                        self.cameraView.switchCamera("SwitchButton")
+                        cameraView.switchCamera("SwitchButton")
                     }) {
                         Image(systemName: "camera.rotate")
                             .font(.system(size: 32.0))
@@ -32,6 +33,7 @@ struct ContentView: View {
                     Text(examTimer.statusMessage)
                     HStack(spacing: 150) {
                         Button(action: {
+                            self.cameraView.capture("test")
                             examTimer.prepare()
                             // self.cameraView.startAction()
                         }) {
@@ -77,7 +79,7 @@ class ExamTimer: ObservableObject {
     }
     
     func start() {
-        self.counter = 30
+        self.counter = 5
         self.status = "start"
         self.statusMessage = "Examining"
         self.timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in

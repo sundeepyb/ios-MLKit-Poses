@@ -190,7 +190,6 @@ public class UIUtilities {
       }
     }
     for landmark in pose.landmarks {
-        print(landmark.type)
       let landmarkPoint = positionTransformationClosure(landmark.position)
       UIUtilities.addCircle(
         atPoint: landmarkPoint,
